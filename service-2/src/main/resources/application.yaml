@@ -1,0 +1,14 @@
+server:
+  port: 8112
+spring:
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/auth/realms/ems
+        registration:
+          keycloak:
+            client-id: admin-cli
+            client-secret: azZ5XQX6zWHYAGzBts5F5D37KEEHJ9Df
+            authorization-grant-type: client_credentials
