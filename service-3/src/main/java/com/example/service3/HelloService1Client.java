@@ -1,11 +1,18 @@
 package com.example.service3;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.DelegatingOAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.OAuth2AuthorizationContext;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
@@ -26,6 +33,13 @@ public class HelloService1Client {
         clientRegistrations,
         authorizedClientService
     );
+    manager.setContextAttributesMapper(contextAttributesMapper());
+    DelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider = new DelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
+        OAuth2AuthorizedClientProviderBuilder.builder().password().build(),
+        OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build(),
+        OAuth2AuthorizedClientProviderBuilder.builder().password().build()
+    );
+    manager.setAuthorizedClientProvider(delegatingProvider);
     restTemplate = new RestTemplate();
     restTemplate.setUriTemplateHandler(new DefaultUriBuilderFactory("http://localhost:8111"));
     restTemplate.getInterceptors().add((request, body, execution) -> {
@@ -44,6 +58,18 @@ public class HelloService1Client {
 
       return execution.execute(request, body);
     });
+  }
+
+  private Function<OAuth2AuthorizeRequest,Map<String, Object>> contextAttributesMapper() {
+    final String username = "apptest";
+    final String password = "apptest";
+    return authorizeRequest -> {
+      final Map<String, Object> contextAttributes = new HashMap<>();
+      log.debug("getting access token for {}", username);
+      contextAttributes.put(OAuth2AuthorizationContext.USERNAME_ATTRIBUTE_NAME, username);
+      contextAttributes.put(OAuth2AuthorizationContext.PASSWORD_ATTRIBUTE_NAME, password);
+      return contextAttributes;
+    };
   }
 
   public String getMessage() {
