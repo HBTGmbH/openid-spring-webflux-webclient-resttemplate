@@ -42,7 +42,7 @@ public class HelloService1Client {
         new ServerOAuth2AuthorizedClientExchangeFilterFunction(
             manager
         );
-    oauth.setDefaultClientRegistrationId("keycloak");
+    oauth.setDefaultClientRegistrationId("massnahmen");
     ReactiveOAuth2AuthorizationFailureHandler authorizationFailureHandler = new RemoveAuthorizedClientReactiveOAuth2AuthorizationFailureHandler(
         (clientRegistrationId, principal, attributes) -> authorizedClientService.removeAuthorizedClient(clientRegistrationId, principal.getName())
     );
@@ -54,7 +54,7 @@ public class HelloService1Client {
           final String password) {
     return authorizeRequest -> {
       final Map<String, Object> contextAttributes = new HashMap<>();
-      log.debug("getting access token for {}", username);
+      log.info("getting access token for  user {}", username);
       contextAttributes.put(OAuth2AuthorizationContext.USERNAME_ATTRIBUTE_NAME, username);
       contextAttributes.put(OAuth2AuthorizationContext.PASSWORD_ATTRIBUTE_NAME, password);
       return Mono.just(contextAttributes);

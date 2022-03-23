@@ -6,7 +6,7 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: http://localhost:8080/auth/realms/ems
+            issuer-uri: http://localhost:8000/auth/realms/ems
         registration:
           keycloak:
             client-id: admin-cli

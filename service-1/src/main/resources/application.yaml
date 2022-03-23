@@ -3,6 +3,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/auth/realms/ems
+          issuer-uri: http://localhost:8000/auth/realms/ems
 server:
   port: 8111
