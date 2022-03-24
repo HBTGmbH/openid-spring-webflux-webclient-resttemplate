@@ -30,9 +30,9 @@ public class HelloService1Client {
         clientRegistrations,
         authorizedClientService
     );
-
     manager.setContextAttributesMapper(contextAttributesMapper("test", "test"));
-    ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider = new ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
+    ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider =
+            new ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
             ReactiveOAuth2AuthorizedClientProviderBuilder.builder().password().build(),
             ReactiveOAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build(),
             ReactiveOAuth2AuthorizedClientProviderBuilder.builder().password().build()
@@ -42,11 +42,13 @@ public class HelloService1Client {
         new ServerOAuth2AuthorizedClientExchangeFilterFunction(
             manager
         );
-    oauth.setDefaultClientRegistrationId("massnahmen");
-    ReactiveOAuth2AuthorizationFailureHandler authorizationFailureHandler = new RemoveAuthorizedClientReactiveOAuth2AuthorizationFailureHandler(
-        (clientRegistrationId, principal, attributes) -> authorizedClientService.removeAuthorizedClient(clientRegistrationId, principal.getName())
-    );
-    oauth.setAuthorizationFailureHandler(authorizationFailureHandler);
+      oauth.setDefaultClientRegistrationId("massnahmen");
+      ReactiveOAuth2AuthorizationFailureHandler authorizationFailureHandler = new RemoveAuthorizedClientReactiveOAuth2AuthorizationFailureHandler(
+          (clientRegistrationId, principal, attributes) -> authorizedClientService.removeAuthorizedClient(clientRegistrationId, principal.getName())
+          // Dies führt zu dem Verhalten, das der Scheduler einen 401 bekommt und erst beim nächsten Versuch wieder
+          // korrekt arbeitet.
+      );
+      oauth.setAuthorizationFailureHandler(authorizationFailureHandler);
     this.client = builder.baseUrl("http://localhost:8111").filter(oauth).build();
   }
 

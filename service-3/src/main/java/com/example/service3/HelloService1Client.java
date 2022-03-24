@@ -55,8 +55,8 @@ public class HelloService1Client {
   }
 
   private Function<OAuth2AuthorizeRequest,Map<String, Object>> contextAttributesMapper() {
-    final String username = "apptest";
-    final String password = "apptest";
+    final String username = "test";
+    final String password = "test";
     return authorizeRequest -> {
       final Map<String, Object> contextAttributes = new HashMap<>();
       log.debug("getting access token for {}", username);
