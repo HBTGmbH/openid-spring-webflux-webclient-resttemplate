@@ -39,13 +39,13 @@ import java.util.stream.Collectors;
 				.next();
 	}
 
-	private Throwable reAuthorize(Throwable e, final OAuth2AuthorizationContext context) {
+	private Throwable reAuthorize(Throwable e, OAuth2AuthorizationContext context) {
 		log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.", e);
 		// Context reset, damit kein AuthorizedClient mehr im Context befindlich und damit kein veralteter refresh token
 		// oder andere veraltete Informationen im Context
 		Map<String, Object> attributesMap = context.getAttributes();
 
-		OAuth2AuthorizationContext build = OAuth2AuthorizationContext.withClientRegistration(
+		context = OAuth2AuthorizationContext.withClientRegistration(
 						context.getClientRegistration())
 				.principal(context.getPrincipal())
 				.attributes((attributes) -> attributes.putAll(attributesMap))
