@@ -6,9 +6,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.security.oauth2.client.*;
 import org.springframework.util.Assert;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j public final class ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider
 		implements ReactiveOAuth2AuthorizedClientProvider {
@@ -29,28 +31,27 @@ import java.util.*;
 
 	@Override @Nullable public Mono<OAuth2AuthorizedClient> authorize(OAuth2AuthorizationContext context) {
 		Assert.notNull(context, "context cannot be null");
-		for (ReactiveOAuth2AuthorizedClientProvider authorizedClientProvider : this.authorizedClientProviders) {
-			try {
-
-				//TODO FIX ME FUK'N MONO !!!
-				Mono<OAuth2AuthorizedClient> oauth2AuthorizedClient = authorizedClientProvider.authorize(context);
-				oauth2AuthorizedClient.subscribe();
-				Optional<OAuth2AuthorizedClient> oAuth2AuthorizedClient = oauth2AuthorizedClient.blockOptional();
-				if (oAuth2AuthorizedClient.isPresent()) {
-					return oauth2AuthorizedClient;
-				}
-			} catch (ClientAuthorizationException e) {
-				log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.", e);
-				// Context reset, damit kein AuthorizedClient mehr im Context befindlich und damit kein veralteter refresh token
-				// oder andere veraltete Informationen im Context
-				Map<String, Object> attributesMap = context.getAttributes();
-				context = OAuth2AuthorizationContext.withClientRegistration(context.getClientRegistration())
-						.principal(context.getPrincipal())
-						.attributes((attributes) -> attributes.putAll(attributesMap))
-						.build();
-			}
-		}
-		return null;
+		return Flux.fromIterable(this.authorizedClientProviders)
+				.flatMap(reactiveOAuth2AuthorizedClientProvider -> Mono.defer(
+						() -> reactiveOAuth2AuthorizedClientProvider.authorize(context)))
+				.filter(Objects::nonNull)
+				.onErrorMap(throwable -> reAuthorize(throwable, context))
+				.next();
 	}
+
+	private Throwable reAuthorize(Throwable e, final OAuth2AuthorizationContext context) {
+		log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.", e);
+		// Context reset, damit kein AuthorizedClient mehr im Context befindlich und damit kein veralteter refresh token
+		// oder andere veraltete Informationen im Context
+		Map<String, Object> attributesMap = context.getAttributes();
+
+		OAuth2AuthorizationContext build = OAuth2AuthorizationContext.withClientRegistration(
+						context.getClientRegistration())
+				.principal(context.getPrincipal())
+				.attributes((attributes) -> attributes.putAll(attributesMap))
+				.build();
+		return e;
+	}
+
 
 }
