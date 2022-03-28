@@ -1,12 +1,17 @@
 package com.example.service4;
 
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import org.springframework.security.oauth2.client.*;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.*;
+import reactor.core.Exceptions;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
+import reactor.util.retry.Retry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,11 +36,10 @@ public class HelloService1Client {
         authorizedClientService
     );
     manager.setContextAttributesMapper(contextAttributesMapper("test", "test"));
-    ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider =
-            new ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
+    DelegatingReactiveOAuth2AuthorizedClientProvider delegatingProvider =
+            new DelegatingReactiveOAuth2AuthorizedClientProvider(
             ReactiveOAuth2AuthorizedClientProviderBuilder.builder().password().build(),
-            ReactiveOAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build(),
-            ReactiveOAuth2AuthorizedClientProviderBuilder.builder().password().build()
+            ReactiveOAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build()
     );
     manager.setAuthorizedClientProvider(delegatingProvider);
     ServerOAuth2AuthorizedClientExchangeFilterFunction oauth =
@@ -49,7 +53,25 @@ public class HelloService1Client {
           // korrekt arbeitet.
       );
       oauth.setAuthorizationFailureHandler(authorizationFailureHandler);
-    this.client = builder.baseUrl("http://localhost:8111").filter(oauth).build();
+
+    Retry customStrategy = Retry.from(companion -> companion.handle((retrySignal, sink) -> {
+      Context ctx = sink.currentContext();
+      int rl = ctx.getOrDefault("retriesLeft", 1);
+      if (rl == 1) {
+        sink.next(Context.of(
+                "retriesLeft", 0,
+                "lastError", retrySignal.failure()
+        ));
+      } else {
+        sink.error(Exceptions.retryExhausted("retries exhausted", retrySignal.failure()));
+      }
+    }));
+
+    this.client = builder
+            .baseUrl("http://localhost:8111")
+            .filter((request, next) -> next.exchange(request).retryWhen(customStrategy))
+            .filter(oauth)
+            .build();
   }
 
   private Function<OAuth2AuthorizeRequest, Mono<Map<String, Object>>> contextAttributesMapper(final String username,
