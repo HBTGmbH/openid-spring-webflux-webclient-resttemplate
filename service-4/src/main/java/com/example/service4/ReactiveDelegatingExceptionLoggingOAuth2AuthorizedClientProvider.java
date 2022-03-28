@@ -1,8 +1,6 @@
 package com.example.service4;
 
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.security.oauth2.client.*;
 import org.springframework.util.Assert;
@@ -10,7 +8,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j public final class ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider
 		implements ReactiveOAuth2AuthorizedClientProvider {
@@ -31,25 +30,29 @@ import java.util.stream.Collectors;
 
 	@Override @Nullable public Mono<OAuth2AuthorizedClient> authorize(OAuth2AuthorizationContext context) {
 		Assert.notNull(context, "context cannot be null");
+		AtomicReference<OAuth2AuthorizationContext> authContext = new AtomicReference<>(
+				context);
 		return Flux.fromIterable(this.authorizedClientProviders)
 				.flatMap(reactiveOAuth2AuthorizedClientProvider -> Mono.defer(
 						() -> reactiveOAuth2AuthorizedClientProvider.authorize(context)))
 				.filter(Objects::nonNull)
-				.onErrorMap(throwable -> reAuthorize(throwable, context))
+				.onErrorContinue((throwable, o) -> reAuthorize(throwable, authContext))
 				.next();
 	}
 
-	private Throwable reAuthorize(Throwable e, OAuth2AuthorizationContext context) {
-		log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.", e);
+	private Throwable reAuthorize(Throwable e, AtomicReference<OAuth2AuthorizationContext> authContext) {
+		log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.");
 		// Context reset, damit kein AuthorizedClient mehr im Context befindlich und damit kein veralteter refresh token
 		// oder andere veraltete Informationen im Context
+		OAuth2AuthorizationContext context = authContext.get();
 		Map<String, Object> attributesMap = context.getAttributes();
 
-		context = OAuth2AuthorizationContext.withClientRegistration(
+		authContext.set(OAuth2AuthorizationContext.withClientRegistration(
 						context.getClientRegistration())
 				.principal(context.getPrincipal())
 				.attributes((attributes) -> attributes.putAll(attributesMap))
-				.build();
+				.build());
+
 		return e;
 	}
 

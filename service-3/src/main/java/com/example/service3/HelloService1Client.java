@@ -30,8 +30,7 @@ public class HelloService1Client {
     manager.setContextAttributesMapper(contextAttributesMapper());
     DelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider = new DelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
         OAuth2AuthorizedClientProviderBuilder.builder().password().build(),
-        OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build(),
-        OAuth2AuthorizedClientProviderBuilder.builder().password().build()
+        OAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build()
     );
     manager.setAuthorizedClientProvider(delegatingProvider);
     restTemplate = new RestTemplate();
