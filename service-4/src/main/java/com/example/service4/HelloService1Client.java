@@ -6,13 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.oauth2.client.AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.ClientAuthorizationException;
-import org.springframework.security.oauth2.client.DelegatingReactiveOAuth2AuthorizedClientProvider;
-import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.OAuth2AuthorizationContext;
-import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
-import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.*;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
 import org.springframework.stereotype.Component;
@@ -39,11 +33,12 @@ public class HelloService1Client {
         authorizedClientService
     );
     manager.setContextAttributesMapper(contextAttributesMapper("test", "test"));
-    DelegatingReactiveOAuth2AuthorizedClientProvider delegatingProvider =
-            new DelegatingReactiveOAuth2AuthorizedClientProvider(
-            ReactiveOAuth2AuthorizedClientProviderBuilder.builder().password().build(),
-            ReactiveOAuth2AuthorizedClientProviderBuilder.builder().refreshToken().build()
-    );
+    ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider delegatingProvider =
+            new ReactiveDelegatingExceptionLoggingOAuth2AuthorizedClientProvider(
+				new PasswordReactiveOAuth2AuthorizedClientProvider(),
+				new RefreshTokenReactiveOAuth2AuthorizedClientProvider(),
+				new SessionRefreshReactiveOAuth2AuthorizedClientProvider()
+   		 );
     manager.setAuthorizedClientProvider(delegatingProvider);
     ServerOAuth2AuthorizedClientExchangeFilterFunction oauth =
         new ServerOAuth2AuthorizedClientExchangeFilterFunction(
@@ -51,27 +46,27 @@ public class HelloService1Client {
         );
       oauth.setDefaultClientRegistrationId("massnahmen");
 
-    Retry customStrategy = Retry.from(companion -> companion.handle((retrySignal, sink) -> {
-      Context ctx = sink.currentContext();
-      boolean sendErrorToSink = true;
-      if(retrySignal.failure() instanceof ClientAuthorizationException) {
-        int rl = ctx.getOrDefault("retriesLeft", 1);
-        if (rl == 1) {
-          log.info("Got ClientAuthorizationException -> Retry execution!", retrySignal.failure());
-          sendErrorToSink = false;
-          sink.next(Context.of(
-              "retriesLeft", 0
-          ));
-        }
-      }
-      if(sendErrorToSink) {
-        sink.error(retrySignal.failure());
-      }
-    }));
+//    Retry customStrategy = Retry.from(companion -> companion.handle((retrySignal, sink) -> {
+//      Context ctx = sink.currentContext();
+//      boolean sendErrorToSink = true;
+//      if(retrySignal.failure() instanceof ClientAuthorizationException) {
+//        int rl = ctx.getOrDefault("retriesLeft", 1);
+//        if (rl == 1) {
+//          log.info("Got ClientAuthorizationException -> Retry execution!", retrySignal.failure());
+//          sendErrorToSink = false;
+//          sink.next(Context.of(
+//              "retriesLeft", 0
+//          ));
+//        }
+//      }
+//      if(sendErrorToSink) {
+//        sink.error(retrySignal.failure());
+//      }
+//    }));
 
     this.client = builder
             .baseUrl("http://localhost:8111")
-            .filter((request, next) -> next.exchange(request).retryWhen(customStrategy))
+//            .filter((request, next) -> next.exchange(request).retryWhen(customStrategy))
             .filter(oauth)
             .filter(ExchangeFilterFunction.ofRequestProcessor(clientRequest -> {
               StringBuilder sb = new StringBuilder("Request: ");

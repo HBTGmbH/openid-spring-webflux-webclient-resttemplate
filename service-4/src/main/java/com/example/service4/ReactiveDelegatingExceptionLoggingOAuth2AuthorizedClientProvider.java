@@ -30,31 +30,36 @@ import java.util.concurrent.atomic.AtomicReference;
 
 	@Override @Nullable public Mono<OAuth2AuthorizedClient> authorize(OAuth2AuthorizationContext context) {
 		Assert.notNull(context, "context cannot be null");
-		AtomicReference<OAuth2AuthorizationContext> authContext = new AtomicReference<>(
-				context);
+		AtomicReference<OAuth2AuthorizationContext> authContext = new AtomicReference<>(context);
+		AtomicInteger count = new AtomicInteger();
 		return Flux.fromIterable(this.authorizedClientProviders)
-				.flatMap(reactiveOAuth2AuthorizedClientProvider -> Mono.defer(
+				.concatMap(reactiveOAuth2AuthorizedClientProvider -> Mono.defer(
 						() -> reactiveOAuth2AuthorizedClientProvider.authorize(context)))
 				.filter(Objects::nonNull)
-				.onErrorContinue((throwable, o) -> reAuthorize(throwable, authContext))
+				.onErrorContinue((throwable, o) -> {
+					reAuthorize(throwable, authContext, count.getAndIncrement());
+					log.info("Context: {}", authContext.get().getAuthorizedClient().getRefreshToken());
+					log.info(throwable.getMessage());
+				})
 				.next();
 	}
 
-	private Throwable reAuthorize(Throwable e, AtomicReference<OAuth2AuthorizationContext> authContext) {
+	private Throwable reAuthorize(Throwable e, AtomicReference<OAuth2AuthorizationContext> authContext, int count) {
 		log.info("Caught ClientAuthorizationException. Move to next OAuth2AuthorizedClientProvider.");
 		// Context reset, damit kein AuthorizedClient mehr im Context befindlich und damit kein veralteter refresh token
 		// oder andere veraltete Informationen im Context
 		OAuth2AuthorizationContext context = authContext.get();
 		Map<String, Object> attributesMap = context.getAttributes();
 
-		authContext.set(OAuth2AuthorizationContext.withClientRegistration(
-						context.getClientRegistration())
+		authContext.set(OAuth2AuthorizationContext.withAuthorizedClient(
+						new OAuth2AuthorizedClient(authContext.get().getClientRegistration(),
+								authContext.get().getPrincipal().getName(),
+								authContext.get().getAuthorizedClient().getAccessToken(), null))
 				.principal(context.getPrincipal())
 				.attributes((attributes) -> attributes.putAll(attributesMap))
 				.build());
 
 		return e;
 	}
-
 
 }
