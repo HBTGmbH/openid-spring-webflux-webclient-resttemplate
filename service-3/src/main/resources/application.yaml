@@ -11,3 +11,7 @@ spring:
           keycloak:
             client-id: admin-cli
             authorization-grant-type: password
+logging:
+  level:
+    root: warn
+    com.example.service3: debug

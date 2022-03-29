@@ -13,18 +13,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
-import reactor.util.retry.Retry;
 
 @Slf4j
 @Component
-public class HelloService1Client {
+public class HelloServiceDelegatedSessionRefreshClient {
 
   private final WebClient client;
 
   // Spring Boot auto-configures a `WebClient.Builder` instance with nice defaults and customizations.
   // We can use it to create a dedicated `WebClient` for our component.
-  public HelloService1Client(WebClient.Builder builder, ReactiveClientRegistrationRepository clientRegistrations) {
+  public HelloServiceDelegatedSessionRefreshClient(WebClient.Builder builder, ReactiveClientRegistrationRepository clientRegistrations) {
     InMemoryReactiveOAuth2AuthorizedClientService authorizedClientService = new InMemoryReactiveOAuth2AuthorizedClientService(
         clientRegistrations
     );

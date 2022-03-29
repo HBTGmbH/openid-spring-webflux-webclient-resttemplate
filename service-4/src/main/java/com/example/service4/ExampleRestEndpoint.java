@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class ExampleRestEndpoint {
 
-  private final HelloService1Client helloService1Client;
+  private final HelloServiceDelegatedSessionRefreshClient helloService1Client;
 
   @GetMapping(path = "/hello")
   public Mono<String> sayHello() {
